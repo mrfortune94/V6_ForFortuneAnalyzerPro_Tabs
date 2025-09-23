@@ -49,7 +49,7 @@ interface ReportGeneratorProps {
 
 export default function ReportGenerator({ onBack }: ReportGeneratorProps) {
   const [reportConfig, setReportConfig] = useState({
-    title: "Security Assessment Report",
+    title: "",
     client: "",
     tester: "",
     includeSummary: true,
@@ -79,62 +79,98 @@ export default function ReportGenerator({ onBack }: ReportGeneratorProps) {
     }
   }
 
-  const mockFindings: Finding[] = [
-    {
-      id: "1",
-      title: "Cross-Site Scripting (XSS) Vulnerability",
-      severity: "High",
-      category: "Web Application",
-      description: "Reflected XSS vulnerability found in search parameter",
-      impact:
-        "Attackers can execute malicious scripts in user browsers, potentially stealing session cookies or performing actions on behalf of users.",
-      evidence: "GET /search?q=<script>alert('XSS')</script>",
-      recommendation: "Implement proper input validation and output encoding for all user inputs.",
-      affectedUrls: ["[Target Domain]/search", "[API Endpoint]/search"],
-      cvssScore: 7.4,
-    },
-    {
-      id: "2",
-      title: "Missing Security Headers",
-      severity: "Medium",
-      category: "Web Application",
-      description: "Critical security headers are missing from HTTP responses",
-      impact:
-        "Lack of security headers increases vulnerability to clickjacking, MIME sniffing, and other client-side attacks.",
-      evidence: "Missing headers: X-Frame-Options, X-Content-Type-Options, Content-Security-Policy",
-      recommendation:
-        "Implement comprehensive security headers including CSP, X-Frame-Options, and X-Content-Type-Options.",
-      affectedUrls: ["[Target Domain]", "[Target Domain]/app"],
-    },
-    {
-      id: "3",
-      title: "Exposed Database Port",
-      severity: "Critical",
-      category: "Network",
-      description: "MySQL database port 3306 is publicly accessible",
-      impact:
-        "Direct database access could lead to complete data compromise, including sensitive customer information.",
-      evidence: "Port 3306/TCP open on target server, responding to MySQL protocol",
-      recommendation: "Restrict database access to authorized hosts only using firewall rules.",
-      affectedUrls: ["[Target Server]:3306"],
-      cvssScore: 9.1,
-    },
-    {
-      id: "4",
-      title: "API Authentication Bypass",
-      severity: "High",
-      category: "API",
-      description: "API endpoints accessible without proper authentication",
-      impact: "Unauthorized access to sensitive API endpoints could expose user data and system functionality.",
-      evidence: "GET /api/users returns user data without Authorization header",
-      recommendation: "Implement proper authentication and authorization for all API endpoints.",
-      affectedUrls: ["[API Endpoint]/users", "[API Endpoint]/admin"],
-      cvssScore: 8.2,
-    },
-  ]
+  const collectRealFindings = (): Finding[] => {
+    const findings: Finding[] = []
 
-  const generateMockReport = (): ReportData => {
-    const severityCounts = mockFindings.reduce(
+    // Collect findings from localStorage if available from other tools
+    try {
+      const webScanResults = localStorage.getItem("webScanResults")
+      const apiTestResults = localStorage.getItem("apiTestResults")
+      const credentialResults = localStorage.getItem("credentialResults")
+      const networkResults = localStorage.getItem("networkResults")
+
+      if (webScanResults) {
+        const webFindings = JSON.parse(webScanResults)
+        findings.push(
+          ...webFindings.map((result: any) => ({
+            id: `web-${result.id || Date.now()}`,
+            title: result.vulnerability || result.title || "Web Vulnerability",
+            severity: result.severity || "Medium",
+            category: "Web Application" as const,
+            description: result.description || "Web application vulnerability detected",
+            impact: result.impact || "Potential security risk identified",
+            evidence: result.evidence || result.payload || "Evidence collected during scan",
+            recommendation: result.recommendation || "Review and remediate the identified vulnerability",
+            affectedUrls: result.affectedUrls || [result.url || "Target URL"],
+            cvssScore: result.cvssScore,
+          })),
+        )
+      }
+
+      if (apiTestResults) {
+        const apiFindings = JSON.parse(apiTestResults)
+        findings.push(
+          ...apiFindings.map((result: any) => ({
+            id: `api-${result.id || Date.now()}`,
+            title: result.vulnerability || result.title || "API Vulnerability",
+            severity: result.severity || "Medium",
+            category: "API" as const,
+            description: result.description || "API security vulnerability detected",
+            impact: result.impact || "API security risk identified",
+            evidence: result.evidence || result.payload || "Evidence from API testing",
+            recommendation: result.recommendation || "Secure the API endpoint",
+            affectedUrls: result.affectedUrls || [result.endpoint || "API Endpoint"],
+            cvssScore: result.cvssScore,
+          })),
+        )
+      }
+
+      if (credentialResults) {
+        const credFindings = JSON.parse(credentialResults)
+        findings.push(
+          ...credFindings.map((result: any) => ({
+            id: `cred-${result.id || Date.now()}`,
+            title: result.title || "Credential Exposure",
+            severity: result.severity || "High",
+            category: "Web Application" as const,
+            description: result.description || "Exposed credentials detected",
+            impact: result.impact || "Unauthorized access possible",
+            evidence: result.evidence || "Credentials found in application",
+            recommendation: result.recommendation || "Remove exposed credentials and rotate",
+            affectedUrls: result.affectedUrls || ["Target Application"],
+            cvssScore: result.cvssScore,
+          })),
+        )
+      }
+
+      if (networkResults) {
+        const netFindings = JSON.parse(networkResults)
+        findings.push(
+          ...netFindings.map((result: any) => ({
+            id: `net-${result.id || Date.now()}`,
+            title: result.title || "Network Vulnerability",
+            severity: result.severity || "Medium",
+            category: "Network" as const,
+            description: result.description || "Network security issue detected",
+            impact: result.impact || "Network security risk",
+            evidence: result.evidence || "Network scan results",
+            recommendation: result.recommendation || "Secure network configuration",
+            affectedUrls: result.affectedUrls || ["Network Target"],
+            cvssScore: result.cvssScore,
+          })),
+        )
+      }
+    } catch (error) {
+      console.error("[v0] Error collecting findings:", error)
+    }
+
+    return findings
+  }
+
+  const generateRealReport = (): ReportData => {
+    const realFindings = collectRealFindings()
+
+    const severityCounts = realFindings.reduce(
       (acc, finding) => {
         acc[finding.severity.toLowerCase() as keyof typeof acc]++
         return acc
@@ -142,39 +178,63 @@ export default function ReportGenerator({ onBack }: ReportGeneratorProps) {
       { critical: 0, high: 0, medium: 0, low: 0, info: 0 },
     )
 
+    // Get tested domains from localStorage or domain context
+    const testedDomains: string[] = []
+    try {
+      const domainContext = localStorage.getItem("targetDomain")
+      if (domainContext) testedDomains.push(domainContext)
+
+      const apiEndpoints = localStorage.getItem("testedEndpoints")
+      if (apiEndpoints) {
+        const endpoints = JSON.parse(apiEndpoints)
+        testedDomains.push(...endpoints)
+      }
+    } catch (error) {
+      console.error("[v0] Error getting tested domains:", error)
+    }
+
     return {
       id: Date.now().toString(),
-      title: reportConfig.title,
+      title: reportConfig.title || "Security Assessment Report",
       client: reportConfig.client,
       date: new Date(),
       summary: {
-        totalVulnerabilities: mockFindings.length,
+        totalVulnerabilities: realFindings.length,
         criticalVulns: severityCounts.critical,
         highVulns: severityCounts.high,
         mediumVulns: severityCounts.medium,
         lowVulns: severityCounts.low,
-        testedDomains: ["[Target Domain]", "[API Endpoints]", "[Subdomains]"],
-        scanTypes: ["Web Application Scan", "API Security Test", "Network Infrastructure Scan"],
+        testedDomains: testedDomains.length > 0 ? testedDomains : ["No domains tested yet"],
+        scanTypes: ["Web Application Scan", "API Security Test", "Credential Analysis", "Network Scan"],
       },
-      findings: mockFindings,
-      recommendations: [
-        "Implement a comprehensive Web Application Firewall (WAF)",
-        "Establish regular security scanning and monitoring procedures",
-        "Conduct security awareness training for development teams",
-        "Implement proper input validation and output encoding",
-        "Review and update security headers configuration",
-        "Establish network segmentation and access controls",
-      ],
+      findings: realFindings,
+      recommendations:
+        realFindings.length > 0
+          ? [
+              "Implement a comprehensive Web Application Firewall (WAF)",
+              "Establish regular security scanning and monitoring procedures",
+              "Conduct security awareness training for development teams",
+              "Implement proper input validation and output encoding",
+              "Review and update security headers configuration",
+              "Establish network segmentation and access controls",
+            ]
+          : [
+              "No vulnerabilities found in current scan",
+              "Continue regular security assessments",
+              "Implement proactive security monitoring",
+            ],
     }
   }
 
   const handleGenerateReport = async () => {
+    if (!reportConfig.title.trim() || !reportConfig.client.trim()) {
+      alert("Please fill in the report title and client name")
+      return
+    }
+
     setIsGenerating(true)
 
-    // Simulate report generation delay
-    await new Promise((resolve) => setTimeout(resolve, 3000))
-
-    const newReport = generateMockReport()
+    const newReport = generateRealReport()
     setGeneratedReports((prev) => [newReport, ...prev])
     setIsGenerating(false)
   }
@@ -183,12 +243,13 @@ export default function ReportGenerator({ onBack }: ReportGeneratorProps) {
     const report = generatedReports.find((r) => r.id === reportId)
     if (!report) return
 
-    // Create a simple text-based report content
+    // Create a comprehensive report content
     const reportContent = `
 SECURITY ASSESSMENT REPORT
 ${report.title}
 Generated: ${report.date.toLocaleDateString()}
 Client: ${report.client}
+Tester: ${reportConfig.tester || "PenTest Suite"}
 
 EXECUTIVE SUMMARY
 ================
@@ -203,9 +264,11 @@ Scan Types: ${report.summary.scanTypes.join(", ")}
 
 DETAILED FINDINGS
 ================
-${report.findings
-  .map(
-    (finding, index) => `
+${
+  report.findings.length > 0
+    ? report.findings
+        .map(
+          (finding, index) => `
 ${index + 1}. ${finding.title}
 Severity: ${finding.severity}
 Category: ${finding.category}
@@ -221,8 +284,10 @@ Recommendation: ${finding.recommendation}
 
 Affected URLs: ${finding.affectedUrls.join(", ")}
 `,
-  )
-  .join("\n")}
+        )
+        .join("\n")
+    : "No vulnerabilities were identified during the security assessment."
+}
 
 RECOMMENDATIONS
 ==============
@@ -230,6 +295,7 @@ ${report.recommendations.map((rec, index) => `${index + 1}. ${rec}`).join("\n")}
 
 ---
 This report was generated by PenTest Suite
+Generated on: ${new Date().toISOString()}
     `
 
     // Create and download the file
@@ -258,7 +324,7 @@ This report was generated by PenTest Suite
               <FileText className="h-8 w-8" />
               Report Generator
             </h1>
-            <p className="text-muted-foreground text-pretty">Generate comprehensive PDF reports of all test results</p>
+            <p className="text-muted-foreground text-pretty">Generate comprehensive reports from real test results</p>
           </div>
         </div>
 
@@ -267,28 +333,30 @@ This report was generated by PenTest Suite
           <Card>
             <CardHeader>
               <CardTitle>Report Configuration</CardTitle>
-              <CardDescription>Configure your security assessment report</CardDescription>
+              <CardDescription>Configure your security assessment report from real scan data</CardDescription>
             </CardHeader>
             <CardContent className="space-y-6">
               <div className="space-y-4">
                 <div className="space-y-2">
-                  <Label htmlFor="report-title">Report Title</Label>
+                  <Label htmlFor="report-title">Report Title *</Label>
                   <Input
                     id="report-title"
                     value={reportConfig.title}
                     onChange={(e) => setReportConfig((prev) => ({ ...prev, title: e.target.value }))}
-                    placeholder="Security Assessment Report"
+                    placeholder="Enter report title"
+                    required
                   />
                 </div>
 
                 <div className="grid grid-cols-2 gap-4">
                   <div className="space-y-2">
-                    <Label htmlFor="client-name">Client Name</Label>
+                    <Label htmlFor="client-name">Client Name *</Label>
                     <Input
                       id="client-name"
                       value={reportConfig.client}
                       onChange={(e) => setReportConfig((prev) => ({ ...prev, client: e.target.value }))}
                       placeholder="Enter client/organization name"
+                      required
                     />
                   </div>
                   <div className="space-y-2">
@@ -366,7 +434,11 @@ This report was generated by PenTest Suite
                   </div>
                 </div>
 
-                <Button onClick={handleGenerateReport} disabled={isGenerating} className="w-full">
+                <Button
+                  onClick={handleGenerateReport}
+                  disabled={isGenerating || !reportConfig.title.trim() || !reportConfig.client.trim()}
+                  className="w-full"
+                >
                   {isGenerating ? (
                     <>
                       <Clock className="h-4 w-4 mr-2 animate-spin" />
@@ -375,7 +447,7 @@ This report was generated by PenTest Suite
                   ) : (
                     <>
                       <FileText className="h-4 w-4 mr-2" />
-                      Generate Report
+                      Generate Report from Real Data
                     </>
                   )}
                 </Button>

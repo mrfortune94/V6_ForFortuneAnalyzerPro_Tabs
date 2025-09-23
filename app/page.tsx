@@ -56,26 +56,20 @@ export default function PentestDashboard() {
       description: "Scan for XSS, SQL injection, and other web vulnerabilities",
       icon: <Globe className="h-6 w-6" />,
       status: "idle",
-      lastRun: "2 hours ago",
-      vulnerabilities: 3,
     },
     {
       id: "api-tester",
       name: "API Endpoint Tester",
       description: "Test REST APIs for security misconfigurations and vulnerabilities",
       icon: <Server className="h-6 w-6" />,
-      status: "completed",
-      lastRun: "1 hour ago",
-      vulnerabilities: 1,
+      status: "idle",
     },
     {
       id: "network-scanner",
       name: "Network Infrastructure Scanner",
       description: "Port scanning, SSL/TLS analysis, and service enumeration",
       icon: <Shield className="h-6 w-6" />,
-      status: "running",
-      progress: 65,
-      lastRun: "Running now",
+      status: "idle",
     },
     {
       id: "browser",
@@ -90,7 +84,6 @@ export default function PentestDashboard() {
       description: "Real-time analysis of game APIs, RNG values, and backend logic",
       icon: <GameController2 className="h-6 w-6" />,
       status: "idle",
-      lastRun: "Never",
     },
     {
       id: "credential-analyzer",
@@ -98,7 +91,6 @@ export default function PentestDashboard() {
       description: "MITM-style credential monitoring and leak detection",
       icon: <Key className="h-6 w-6" />,
       status: "idle",
-      lastRun: "Never",
     },
     {
       id: "reports",
@@ -106,7 +98,6 @@ export default function PentestDashboard() {
       description: "Generate comprehensive PDF reports of all test results",
       icon: <FileText className="h-6 w-6" />,
       status: "idle",
-      lastRun: "3 hours ago",
     },
     {
       id: "settings",
@@ -121,7 +112,6 @@ export default function PentestDashboard() {
       description: "Advanced 15+ attack vectors for admin credential discovery",
       icon: <Key className="h-6 w-6" />,
       status: "idle",
-      lastRun: "Never",
     },
   ])
 
@@ -394,9 +384,6 @@ export default function PentestDashboard() {
 
                   <div className="flex items-center justify-between text-sm text-muted-foreground">
                     {module.lastRun && <span>Last run: {module.lastRun}</span>}
-                    {module.vulnerabilities !== undefined && (
-                      <span className="text-destructive font-medium">{module.vulnerabilities} vulnerabilities</span>
-                    )}
                   </div>
 
                   <Button

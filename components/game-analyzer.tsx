@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Alert, AlertDescription } from "@/components/ui/alert"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Play, Square, Download, Filter, AlertTriangle, Wifi, Globe, Shield } from "lucide-react"
+import { Play, Square, Download, Filter, AlertTriangle, Wifi, Globe, Shield, ArrowLeft } from "lucide-react"
 
 interface APIRequest {
   id: string
@@ -44,7 +44,7 @@ interface WebSocketMessage {
   type: "websocket"
 }
 
-export default function GameAnalyzer() {
+export default function GameAnalyzer({ onBack }: { onBack?: () => void }) {
   const [gameUrl, setGameUrl] = useState("")
   const [proxyUrl, setProxyUrl] = useState("")
   const [isAnalyzing, setIsAnalyzing] = useState(false)
@@ -419,6 +419,12 @@ ${consoleLogs
       <div className="max-w-7xl mx-auto space-y-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-4">
+            {onBack && (
+              <Button variant="outline" size="sm" onClick={onBack}>
+                <ArrowLeft className="h-4 w-4 mr-2" />
+                Back
+              </Button>
+            )}
             <h1 className="text-3xl font-bold text-foreground">Real-Time Game Analyzer</h1>
             <div className="flex items-center gap-2">
               <div
